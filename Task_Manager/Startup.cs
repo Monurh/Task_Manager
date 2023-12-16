@@ -1,10 +1,19 @@
-﻿using Microsoft.OpenApi.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using Task_Manager.DB;
 using NLog;
 
 namespace Task_Manager
 {
     public class Startup
     {
+        public IConfiguration Configuration { get; }
+
+        public Startup(IConfiguration configuration)
+        {
+            Configuration = configuration;
+        }
+
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
@@ -14,6 +23,10 @@ namespace Task_Manager
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Your API", Version = "v1" });
             });
+
+            // Чтение строки подключения к базе данных из файла конфигурации
+            string connection = Configuration.GetConnectionString("DefaultConnection");
+            services.AddDbContext<ApplicationContext>(options => options.UseSqlServer(connection));
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -32,7 +45,8 @@ namespace Task_Manager
                 });
             }
 
-            LogManager.LoadConfiguration("nlog.config"); // Load NLog configuration file
+            // Загрузка конфигурации NLog из файла
+            LogManager.LoadConfiguration("E:\\RestApi Task Maneger\\Task_Manager\\Task_Manager\\NLog\\nlog.config");
 
             app.UseHttpsRedirection();
             app.UseRouting();

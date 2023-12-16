@@ -6,10 +6,14 @@ namespace Task_Manager
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            var config = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
+
+            CreateHostBuilder(args, config).Build().Run();
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
+        public static IHostBuilder CreateHostBuilder(string[] args, IConfiguration config) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
@@ -20,6 +24,12 @@ namespace Task_Manager
                     logging.ClearProviders();
                     logging.AddConsole();
                     logging.SetMinimumLevel(LogLevel.Trace);
-                }).UseNLog();           
+                })
+                .UseNLog()
+                .ConfigureAppConfiguration((hostingContext, configuration) =>
+                {
+                    configuration.AddConfiguration(config.GetSection("ConnectionStrings"));
+                });
     }
 }
+
