@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Folder Include="NLog\" />
+    <Folder Include="Service\" />
   </ItemGroup>
 
 </Project>

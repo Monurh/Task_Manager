@@ -6,7 +6,7 @@ namespace Task_Manager.DB
     public class ApplicationContext:DbContext
     {
         public DbSet<Users> Users { get; set; }
-        public DbSet<Tasks> Task {  get; set; }
+        public DbSet<Tasks> Tasks {  get; set; }
 
         public ApplicationContext(DbContextOptions<ApplicationContext> options) : base(options)
         {

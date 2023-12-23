@@ -4,7 +4,6 @@ using Task_Manager.DB;
 using NLog;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Task_Manager.Authentication;
 
 namespace Task_Manager
@@ -21,11 +20,56 @@ namespace Task_Manager
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-            services.AddScoped<JwtService>();
             // Register the Swagger generator
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Your API", Version = "v1" });
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Description = "JWT Authorization header using the Bearer scheme",
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer"
+                });
+
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        new string[] { }
+                    }
+                });
+            });
+            // Настройка аутентификации с использованием JWT
+            var authOptions = Configuration.GetSection("AuthOptions").Get<AuthOptions>();
+            var securityKey = authOptions.GetSymmetricSecurityKey();
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.RequireHttpsMetadata = false; // Установите true в продакшене для HTTPS
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidIssuer = authOptions.Issuer,
+                        ValidateAudience = true,
+                        ValidAudience = authOptions.Audience,
+                        ValidateLifetime = true,
+                        IssuerSigningKey = securityKey,
+                        ValidateIssuerSigningKey = true,
+                    };
+                });
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+                options.AddPolicy("User", policy => policy.RequireRole("User"));
             });
             services.AddSingleton<AuthOptions>(provider =>
             {
@@ -40,25 +84,14 @@ namespace Task_Manager
             string connection = Configuration.GetConnectionString("DefaultConnection");
             services.AddDbContext<ApplicationContext>(options => options.UseSqlServer(connection));
 
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = "your_issuer", // Замените на реальные значения
-            ValidAudience = "your_audience", // Замените на реальные значения
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your_secret_key")) // Замените на реальный секретный ключ
-        };
-    });
-
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme);
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            app.UseAuthentication(); // Добавленная строка для использования аутентификации
+            app.UseAuthorization();
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();

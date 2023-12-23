@@ -1,4 +1,5 @@
 using NLog.Web;
+using System.Security.Cryptography;
 
 namespace Task_Manager
 {
@@ -10,7 +11,24 @@ namespace Task_Manager
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                 .Build();
 
+            GenerateKey();
+
             CreateHostBuilder(args, config).Build().Run();
+        }
+
+        private static string GenerateKey()
+        {
+            using (var rng = new RNGCryptoServiceProvider())
+            {
+                var keyBytes = new byte[32]; 
+                rng.GetBytes(keyBytes);
+                var base64Key = Convert.ToBase64String(keyBytes);
+
+                // Вывод ключа в консоль
+                Console.WriteLine("Generated Key: " + base64Key);
+
+                return base64Key;
+            }
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args, IConfiguration config) =>

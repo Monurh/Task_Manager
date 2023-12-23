@@ -5,6 +5,7 @@
         public Guid UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+        public string Rolle {  get; set; }
     }
     public  class LoginModel
     {

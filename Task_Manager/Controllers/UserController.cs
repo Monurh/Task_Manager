@@ -1,5 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Task_Manager.Authentication;
 using Task_Manager.DB;
 using Task_Manager.Model;
@@ -14,16 +17,15 @@ namespace Task_Manager.Controllers
         private readonly ApplicationContext db;
         private readonly IConfiguration _configuration;
         private readonly AuthOptions _authOptions;
-        private readonly JwtService _jwtService;
 
-        public UserController(ApplicationContext dbContext, IConfiguration configuration, ILogger<UserController> logger, AuthOptions authOptions, JwtService jwtService)
+        public UserController(ApplicationContext dbContext, IConfiguration configuration, ILogger<UserController> logger, AuthOptions authOptions)
         {
             db = dbContext;
             _configuration = configuration;
             _logger = logger;
             _authOptions = authOptions;
-            _jwtService = jwtService;
         }
+
         [HttpPost("register")]
         public async Task<ActionResult> RegisterUser([FromBody] Users userData)
         {
@@ -32,13 +34,11 @@ namespace Task_Manager.Controllers
                 _logger.LogInformation(message: "Metod Post Register");
                 userData.UserId = Guid.NewGuid();
 
-                // Генерация нового ключа при регистрации пользователя
-                _authOptions.Key = AuthOptions.GenerateBase64Key();
-
                 await db.Users.AddAsync(userData);
                 await db.SaveChangesAsync();
 
-                return CreatedAtAction(nameof(GetUser), new { id = userData.UserId });
+                var token = GenerateJwtToken(userData.UserId.ToString(), userData.Rolle, userData.UserId.ToString());
+                return CreatedAtAction(nameof(GetUser), new { id = userData.UserId }, new { Token = token });
             }
             catch (Exception ex)
             {
@@ -81,7 +81,7 @@ namespace Task_Manager.Controllers
                     return BadRequest("Invalid login or password");
                 }
 
-                var token = _jwtService.GenerateJwtToken(user.UserId);
+                var token = GenerateJwtToken(user.UserId.ToString(), user.Rolle, user.UserId.ToString());
 
                 _logger.LogInformation(message: $"User '{user.UserName}' logged in");
                 return Ok(new { Token = token });
@@ -91,6 +91,32 @@ namespace Task_Manager.Controllers
                 _logger.LogError(ex.Message, "Error during login");
                 return BadRequest(ex.Message);
             }
+        }
+
+        private string GenerateJwtToken(string id, string role, string userId)
+        {
+            var authOptions = _configuration.GetSection("AuthOptions").Get<AuthOptions>();
+            var securityKey = authOptions.GetSymmetricSecurityKey();
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, id),
+                new Claim(ClaimTypes.Role, role),
+                new Claim("UserId", userId) // Добавление утверждения UserId в токен
+            };
+
+            var token = new JwtSecurityToken(
+                issuer: authOptions.Issuer,
+                audience: authOptions.Audience,
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(authOptions.TokenLifetime),
+                signingCredentials: credentials
+            );
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+
+            return tokenHandler.WriteToken(token);
         }
     }
 }
