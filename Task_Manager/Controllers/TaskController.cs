@@ -34,11 +34,9 @@ namespace Task_Manager.Controllers
                     return BadRequest("Invalid or missing UserId");
                 }
 
-                // Предполагается, что taskData имеет поле UserId для привязки к задаче
                 taskData.UserId = userId;
                 taskData.TaskId = Guid.NewGuid();
-
-                // Вставка новой задачи с UserId, извлеченным из токена
+                
                 db.Tasks.Add(taskData);
                 await db.SaveChangesAsync();
 
@@ -80,7 +78,7 @@ namespace Task_Manager.Controllers
             {
                 _logger.LogInformation($"Executing GetSorted method with sort option: {sortTask}");
 
-                IQueryable<Task_Manager.Model.Tasks> query = db.Tasks; 
+                IQueryable<Tasks> query = db.Tasks; 
 
                 switch (sortTask)
                 {
@@ -100,6 +98,30 @@ namespace Task_Manager.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"An error occurred while processing GetSorted with sort option: {sortTask}", ex);
+                return StatusCode(500, "Internal Server Error");
+            }
+        }
+        [Authorize]
+        [HttpDelete("Deleted")]
+        public async Task<ActionResult> Deleted(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation($"Executing DeleteTask method for task with ID: {id}");
+
+                var task = await db.Tasks.FirstOrDefaultAsync(u => u.TaskId== id);
+                if(task == null)
+                {
+                    return StatusCode(500, "No Task");
+                }
+                db.Tasks.Remove(task);
+                await db.SaveChangesAsync();
+                _logger.LogInformation($"DeleteTask method executed successfully for task with ID: {id}");
+                return Ok(task);
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError($"An error occurred while processing DeleteTask for user with ID: {id}", ex);
                 return StatusCode(500, "Internal Server Error");
             }
         }
