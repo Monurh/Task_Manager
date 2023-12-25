@@ -51,17 +51,17 @@ namespace Task_Manager.Controllers
         }
 
         [Authorize]
-        [HttpGet("id:guid")]
+        [HttpGet("{id:guid}")]
         public async Task<ActionResult> GetTask(Guid id)
         {
             try
             {
-                _logger.LogInformation(message: "Get Task id");
+                _logger.LogInformation(message: "Get Task by id");
                 var task = await db.Tasks.FirstOrDefaultAsync(u => u.TaskId == id);
-                if(task==null)
+                if (task == null)
                 {
-                    _logger.LogError(message: "Not Task");
-                    return NotFound("Not task");
+                    _logger.LogError(message: "No Task found");
+                    return NotFound("No task found");
                 }
                 return Ok(task);
             }
@@ -71,6 +71,37 @@ namespace Task_Manager.Controllers
                 return BadRequest(ex.Message);
             }
         }
-    }
 
+        [Authorize]
+        [HttpGet("Sort")]
+        public async Task<ActionResult> GetSorted(SortTask sortTask)
+        {
+            try
+            {
+                _logger.LogInformation($"Executing GetSorted method with sort option: {sortTask}");
+
+                IQueryable<Task_Manager.Model.Tasks> query = db.Tasks; // Использование DbSet<Task_Manager.Model.Tasks>
+
+                switch (sortTask)
+                {
+                    case SortTask.NamesAsc:
+                        query = query.OrderBy(p => p.Title); // Использование корректного свойства объекта
+                        break;
+                    case SortTask.NamesDesc:
+                        query = query.OrderByDescending(p => p.Title); // Использование корректного свойства объекта
+                        break;
+                }
+
+                var sortedTasks = await query.ToListAsync();
+
+                _logger.LogInformation($"GetSorted method executed successfully with sort option: {sortTask}");
+                return Ok(sortedTasks);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"An error occurred while processing GetSorted with sort option: {sortTask}", ex);
+                return StatusCode(500, "Internal Server Error");
+            }
+        }
+    }
 }

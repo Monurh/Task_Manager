@@ -10,4 +10,9 @@
         public string Status { get; set; } = "";    
         public Guid UserId { get; set; }
     }
+    public enum SortTask
+    {
+        NamesAsc,
+        NamesDesc
+    }
 }
