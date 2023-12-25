@@ -80,15 +80,15 @@ namespace Task_Manager.Controllers
             {
                 _logger.LogInformation($"Executing GetSorted method with sort option: {sortTask}");
 
-                IQueryable<Task_Manager.Model.Tasks> query = db.Tasks; // Использование DbSet<Task_Manager.Model.Tasks>
+                IQueryable<Task_Manager.Model.Tasks> query = db.Tasks; 
 
                 switch (sortTask)
                 {
                     case SortTask.NamesAsc:
-                        query = query.OrderBy(p => p.Title); // Использование корректного свойства объекта
+                        query = query.OrderBy(p => p.Title);
                         break;
                     case SortTask.NamesDesc:
-                        query = query.OrderByDescending(p => p.Title); // Использование корректного свойства объекта
+                        query = query.OrderByDescending(p => p.Title); 
                         break;
                 }
 
