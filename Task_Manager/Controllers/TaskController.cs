@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Azure.Messaging;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
 using Task_Manager.DB;
 using Task_Manager.Model;
 
@@ -20,6 +22,27 @@ namespace Task_Manager.Controllers
             _configuration = configuration;
             _logger = logger;
         }
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public string GetUserIdFromToken(string token)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var jwtToken = tokenHandler.ReadToken(token) as JwtSecurityToken;
+
+            if (jwtToken == null)
+            {
+                throw new ArgumentException("Invalid JWT token");
+            }
+
+            var userIdClaim = jwtToken.Claims.FirstOrDefault(claim => claim.Type == "UserId");
+
+            if (userIdClaim == null)
+            {
+                throw new ArgumentException("UserId claim not found in the token");
+            }
+
+            return userIdClaim.Value;
+        }
+
 
         [Authorize(Roles = "Admin")]
         [HttpPost("addtask")]
@@ -27,20 +50,26 @@ namespace Task_Manager.Controllers
         {
             try
             {
-                var userIdClaim = HttpContext.User.FindFirst("UserId");
-
-                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out Guid userId))
+                var token = HttpContext.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+                if (string.IsNullOrEmpty(token))
                 {
-                    return BadRequest("Invalid or missing UserId");
+                    return BadRequest("Invalid or missing token");
                 }
 
-                taskData.UserId = userId;
+                var userId = GetUserIdFromToken(token);
+
+                if (!Guid.TryParse(userId, out Guid parsedUserId))
+                {
+                    return BadRequest("Invalid UserId in token");
+                }
+
+                taskData.UserId = parsedUserId;
                 taskData.TaskId = Guid.NewGuid();
-                
+
                 db.Tasks.Add(taskData);
                 await db.SaveChangesAsync();
 
-                return CreatedAtAction(nameof(GetTask), new { id = taskData.TaskId });
+                return CreatedAtRoute("GetTask", new { id = taskData.TaskId }, "Task added");
             }
             catch (Exception ex)
             {
